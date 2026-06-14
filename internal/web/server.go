@@ -14,10 +14,11 @@ import (
 )
 
 type Server struct {
-	db      *api.Database
-	config  *config.Config
-	fetcher *services.RSSFetcher
+	db        *api.Database
+	config    *config.Config
+	fetcher   *services.RSSFetcher
 	templates *template.Template
+	aiHandler *api.AIHandler
 }
 
 func NewServer(db *api.Database, cfg *config.Config) *Server {
@@ -43,6 +44,7 @@ func NewServer(db *api.Database, cfg *config.Config) *Server {
 		config:    cfg,
 		fetcher:   rssFetcher,
 		templates: tmpl,
+		aiHandler: api.NewAIHandler(cfg),
 	}
 }
 
@@ -54,6 +56,9 @@ func (s *Server) Start() {
 	http.HandleFunc("/api/clean", s.handleClean)
 	http.HandleFunc("/api/news", s.handleAPINews)
 	http.HandleFunc("/api/resources", s.handleAPIResourcesJSON)
+	http.HandleFunc("/api/ai/models", s.aiHandler.ServeHTTP)
+	http.HandleFunc("/api/ai/chat", s.aiHandler.ServeHTTP)
+	http.HandleFunc("/api/health", s.handleHealth)
 
 	addr := ":" + strconv.Itoa(s.config.Server.Port)
 	log.Printf("Server starting on %s", addr)
@@ -215,4 +220,9 @@ func (s *Server) handleAPIResourcesJSON(w http.ResponseWriter, r *http.Request) 
 func marshalJSON(v interface{}) string {
 	data, _ := json.Marshal(v)
 	return string(data)
+}
+
+func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Write([]byte(`{"status":"ok","service":"ai-watcher"}`))
 }

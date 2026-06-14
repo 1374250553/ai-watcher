@@ -10,6 +10,7 @@ type Config struct {
 	Database DatabaseConfig `json:"database"`
 	News     NewsConfig     `json:"news"`
 	Summary  SummaryConfig  `json:"summary"`
+	AI       AIConfig       `json:"ai"`
 }
 
 type ServerConfig struct {
@@ -36,6 +37,11 @@ type SummaryConfig struct {
 	APIKey  string `json:"api_key"`
 	Model   string `json:"model"`
 	MaxLen  int    `json:"max_len"`
+}
+
+type AIConfig struct {
+	APIKey  string `json:"api_key"`
+	BaseURL string `json:"base_url"`
 }
 
 func LoadConfig(path string) (*Config, error) {
@@ -80,6 +86,10 @@ func DefaultConfig() *Config {
 			APIKey: "",
 			Model:  "qwen-turbo",
 			MaxLen: 50,
+		},
+		AI: AIConfig{
+			APIKey:  "",
+			BaseURL: "https://dashscope.aliyuncs.com/compatible-mode/v1",
 		},
 	}
 }

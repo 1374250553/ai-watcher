@@ -11,6 +11,9 @@
           <input v-model="searchText" placeholder="搜索标题或摘要..." @keydown.enter="loadNews(1)" />
           <button @click="loadNews(1)">搜索</button>
         </div>
+        <button class="fetch-btn" @click="triggerFetch" :disabled="fetching">
+          {{ fetching ? '采集中...' : '立即采集' }}
+        </button>
         <button class="refresh-btn" @click="loadNews(page)">刷新</button>
       </div>
     </div>
@@ -53,6 +56,7 @@ const page = ref(1)
 const totalPages = ref(1)
 const selectedSource = ref('')
 const searchText = ref('')
+const fetching = ref(false)
 const sources = ref<string[]>(['机器之心', '量子位', '微信公众号', '知乎', 'V2EX'])
 
 async function loadNews(p: number) {
@@ -69,6 +73,18 @@ async function loadNews(p: number) {
     totalPages.value = data.totalPages || 1
   } catch (e) {
     console.error('Failed to load news:', e)
+  }
+}
+
+async function triggerFetch() {
+  fetching.value = true
+  try {
+    await fetch('/api/fetch', { method: 'POST' })
+    setTimeout(() => loadNews(1), 2000)
+  } catch (e) {
+    console.error('Failed to trigger fetch:', e)
+  } finally {
+    fetching.value = false
   }
 }
 
@@ -124,6 +140,19 @@ onMounted(() => loadNews(1))
   cursor: pointer;
   font-size: 0.875rem;
   white-space: nowrap;
+}
+
+.fetch-btn {
+  background: #34a853;
+}
+
+.fetch-btn:hover:not(:disabled) {
+  background: #2d9249;
+}
+
+.fetch-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .controls button:hover { background: #1557b0; }

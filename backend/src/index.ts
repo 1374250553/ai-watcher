@@ -2,6 +2,8 @@ import 'dotenv/config'
 import express from 'express'
 import cors from 'cors'
 import { aiRouter } from './routes/ai.js'
+import { newsRouter } from './routes/news.js'
+import { resourcesRouter } from './routes/resources.js'
 
 const app = express()
 const PORT = parseInt(process.env.PORT || '3001', 10)
@@ -10,6 +12,8 @@ app.use(cors())
 app.use(express.json())
 
 app.use('/api/ai', aiRouter)
+app.use('/api', newsRouter)
+app.use('/api', resourcesRouter)
 
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', service: 'ai-platform-backend' })
