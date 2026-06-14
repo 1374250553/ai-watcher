@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>资讯列表 - AI 资讯监控</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f5f5f5; color: #333; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        header { background: #fff; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        h1 { color: #2c3e50; }
+        nav { margin-top: 10px; }
+        nav a { margin-right: 20px; color: #3498db; text-decoration: none; }
+        nav a:hover { text-decoration: underline; }
+        .card { background: #fff; padding: 20px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .btn { display: inline-block; padding: 10px 20px; background: #3498db; color: #fff; border: none; border-radius: 4px; cursor: pointer; text-decoration: none; }
+        .btn:hover { background: #2980b9; }
+        .search-box { display: flex; gap: 10px; margin-bottom: 20px; }
+        .search-box input, .search-box select { padding: 10px; border: 1px solid #ddd; border-radius: 4px; }
+        .search-box input { flex: 1; }
+        .news-item { border-bottom: 1px solid #eee; padding: 15px 0; }
+        .news-item:last-child { border-bottom: none; }
+        .news-title { font-size: 18px; color: #2c3e50; text-decoration: none; }
+        .news-title:hover { color: #3498db; }
+        .news-meta { color: #7f8c8d; font-size: 14px; margin-top: 5px; }
+        .news-summary { margin-top: 10px; color: #555; }
+        .pagination { margin-top: 20px; text-align: center; }
+        .pagination a { display: inline-block; padding: 8px 16px; margin: 0 5px; background: #fff; border: 1px solid #ddd; border-radius: 4px; text-decoration: none; color: #333; }
+        .pagination a:hover { background: #f5f5f5; }
+        .pagination .active { background: #3498db; color: #fff; border-color: #3498db; }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>AI 资讯监控</h1>
+            <nav>
+                <a href="/">首页</a>
+                <a href="/news">资讯列表</a>
+                <a href="/api-resources">API 资源</a>
+            </nav>
+        </div>
+    </header>
+    <main class="container">
+        <div class="card">
+            <h2>资讯列表 (共 {{.Total}} 条)</h2>
+            <form class="search-box" method="GET" action="/news">
+                <select name="source">
+                    <option value="">全部来源</option>
+                    <option value="机器之心" {{if eq .Source "机器之心"}}selected{{end}}>机器之心</option>
+                    <option value="量子位" {{if eq .Source "量子位"}}selected{{end}}>量子位</option>
+                    <option value="微信公众号" {{if eq .Source "微信公众号"}}selected{{end}}>微信公众号</option>
+                    <option value="知乎" {{if eq .Source "知乎"}}selected{{end}}>知乎</option>
+                    <option value="V2EX" {{if eq .Source "V2EX"}}selected{{end}}>V2EX</option>
+                </select>
+                <input type="text" name="search" placeholder="搜索标题或摘要..." value="{{.Search}}">
+                <button type="submit" class="btn">搜索</button>
+            </form>
+            <div class="news-list">
+                {{range .News}}
+                <div class="news-item">
+                    <a href="{{.URL}}" class="news-title" target="_blank">{{.Title}}</a>
+                    <div class="news-meta">
+                        <span>来源: {{.Source}}</span>
+                        <span style="margin-left: 15px;">时间: {{.CreatedAt.Format "2006-01-02 15:04"}}</span>
+                    </div>
+                    {{if .Summary}}
+                    <div class="news-summary">{{.Summary}}</div>
+                    {{end}}
+                </div>
+                {{else}}
+                <p style="text-align: center; color: #7f8c8d; padding: 40px;">暂无资讯</p>
+                {{end}}
+            </div>
+            {{if gt .TotalPages 1}}
+            <div class="pagination">
+                {{if gt .Page 1}}
+                <a href="/news?page={{.Page}}&source={{.Source}}&search={{.Search}}">上一页</a>
+                {{end}}
+                {{range $i := seq 1 .TotalPages}}
+                <a href="/news?page={{$i}}&source={{$.Source}}&search={{$.Search}}" {{if eq $i $.Page}}class="active"{{end}}>{{$i}}</a>
+                {{end}}
+                {{if lt .Page .TotalPages}}
+                <a href="/news?page={{.Page}}&source={{.Source}}&search={{.Search}}">下一页</a>
+                {{end}}
+            </div>
+            {{end}}
+        </div>
+    </main>
+</body>
+</html>

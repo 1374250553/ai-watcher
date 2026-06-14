@@ -1,0 +1,27 @@
+{
+  "server": {
+    "port": 8080
+  },
+  "database": {
+    "host": "localhost",
+    "port": 3306,
+    "user": "root",
+    "password": "",
+    "dbname": "ai_watcher"
+  },
+  "news": {
+    "rss_sources": [
+      "https://www.jiqizhixin.com/rss",
+      "https://www.qbitai.com/feed"
+    ],
+    "wechat_cookie": "",
+    "rsshub_url": "http://localhost:1200",
+    "retention_days": 30,
+    "fetch_interval": 30
+  },
+  "summary": {
+    "api_key": "",
+    "model": "qwen-turbo",
+    "max_len": 50
+  }
+}

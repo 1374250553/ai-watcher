@@ -1,0 +1,55 @@
+# 环境变量文件
+**/.env
+**/.env.*
+!**/.env.example
+
+# 配置文件（含密码）
+config.json
+
+# 编译产物
+ai-watcher
+*.exe
+*.dll
+*.so
+*.dylib
+
+# 数据库文件
+*.db
+*.sqlite
+
+# 构建产物
+**/target/
+**/dist/
+**/build/
+
+# 临时文件和缓存
+**/.vite/
+**/node_modules/
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/*.pyd
+.Python
+**/venv/
+**/ENV/
+**/env/
+**/.venv
+
+# 日志文件
+*.log
+
+# 编辑器文件
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# 备份文件
+**/*.bak
+**/*.backup
+**/*.old
