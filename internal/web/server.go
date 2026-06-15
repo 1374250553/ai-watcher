@@ -49,9 +49,12 @@ func NewServer(db *api.Database, cfg *config.Config) *Server {
 }
 
 func (s *Server) Start() {
-	http.HandleFunc("/", s.handleIndex)
-	http.HandleFunc("/news", s.handleNews)
-	http.HandleFunc("/api-resources", s.handleAPIResources)
+	fs := http.FileServer(http.Dir("frontend/dist"))
+	http.Handle("/assets/", fs)
+	http.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "frontend/dist/favicon.ico")
+	})
+
 	http.HandleFunc("/api/fetch", s.handleFetch)
 	http.HandleFunc("/api/clean", s.handleClean)
 	http.HandleFunc("/api/news", s.handleAPINews)
@@ -59,6 +62,10 @@ func (s *Server) Start() {
 	http.HandleFunc("/api/ai/models", s.aiHandler.ServeHTTP)
 	http.HandleFunc("/api/ai/chat", s.aiHandler.ServeHTTP)
 	http.HandleFunc("/api/health", s.handleHealth)
+
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "frontend/dist/index.html")
+	})
 
 	addr := ":" + strconv.Itoa(s.config.Server.Port)
 	log.Printf("Server starting on %s", addr)
