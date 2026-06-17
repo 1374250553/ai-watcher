@@ -154,3 +154,58 @@ func (db *Database) CleanOldNews(days int) error {
 	_, err := db.db.Exec("DELETE FROM news WHERE created_at < ?", cutoff)
 	return err
 }
+
+type Stats struct {
+	NewsCount    int            `json:"news_count"`
+	LastFetch    string         `json:"last_fetch"`
+	SourceCounts map[string]int `json:"source_counts"`
+}
+
+func (db *Database) GetStats() (*Stats, error) {
+	stats := &Stats{SourceCounts: make(map[string]int)}
+
+	db.db.QueryRow("SELECT COUNT(*) FROM news").Scan(&stats.NewsCount)
+
+	var lastFetch sql.NullTime
+	db.db.QueryRow("SELECT MAX(created_at) FROM fetch_logs WHERE status = 'success'").Scan(&lastFetch)
+	if lastFetch.Valid {
+		stats.LastFetch = lastFetch.Time.Format("2006-01-02 15:04:05")
+	}
+
+	rows, err := db.db.Query("SELECT source, COUNT(*) as cnt FROM news GROUP BY source ORDER BY cnt DESC")
+	if err != nil {
+		return stats, nil
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var source string
+		var count int
+		if err := rows.Scan(&source, &count); err != nil {
+			continue
+		}
+		stats.SourceCounts[source] = count
+	}
+
+	return stats, nil
+}
+
+func (db *Database) GetLatestNews(limit int) ([]models.News, error) {
+	rows, err := db.db.Query(
+		"SELECT id, title, url, summary, source, content, created_at, updated_at FROM news ORDER BY created_at DESC LIMIT ?",
+		limit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var result []models.News
+	for rows.Next() {
+		var n models.News
+		if err := rows.Scan(&n.ID, &n.Title, &n.URL, &n.Summary, &n.Source, &n.Content, &n.CreatedAt, &n.UpdatedAt); err != nil {
+			return nil, err
+		}
+		result = append(result, n)
+	}
+	return result, rows.Err()
+}

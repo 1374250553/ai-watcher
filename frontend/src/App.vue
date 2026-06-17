@@ -6,7 +6,7 @@
         <router-link to="/">首页</router-link>
         <router-link to="/news">AI 资讯</router-link>
         <router-link to="/resources">API 资源</router-link>
-        <router-link to="/chat">对话测试</router-link>
+        <router-link to="/chat">AI 对话</router-link>
       </nav>
     </header>
     <main class="app-main">

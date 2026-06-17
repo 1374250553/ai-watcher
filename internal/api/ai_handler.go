@@ -1,11 +1,14 @@
 package api
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
+	"strings"
 
 	"ai-watcher/internal/config"
 )
@@ -22,8 +25,9 @@ type ChatRequest struct {
 
 type ChatResponse struct {
 	Choices []struct {
-		Message ChatMessage `json:"message"`
-		FinishReason string `json:"finish_reason"`
+		Message      ChatMessage `json:"message"`
+		Delta        ChatMessage `json:"delta"`
+		FinishReason string      `json:"finish_reason"`
 	} `json:"choices"`
 	Usage struct {
 		PromptTokens     int `json:"prompt_tokens"`
@@ -60,6 +64,14 @@ func NewAIHandler(cfg *config.Config) *AIHandler {
 	}
 }
 
+func GetModelCount() int {
+	total := 0
+	for _, models := range textChatModels {
+		total += len(models)
+	}
+	return total
+}
+
 func (h *AIHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch r.URL.Path {
 	case "/api/ai/models":
@@ -87,15 +99,15 @@ func (h *AIHandler) handleModels(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *AIHandler) handleChat(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
 	if r.Method != http.MethodPost {
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		json.NewEncoder(w).Encode(map[string]string{"error": "Method not allowed"})
 		return
 	}
 
 	if h.apiKey == "" {
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(map[string]string{
 			"error":   "DASHSCOPE_API_KEY not configured",
@@ -107,15 +119,18 @@ func (h *AIHandler) handleChat(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Model    string        `json:"model"`
 		Messages []ChatMessage `json:"messages"`
+		Stream   bool          `json:"stream"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(map[string]string{"error": "Invalid request body"})
 		return
 	}
 
 	if req.Messages == nil || len(req.Messages) == 0 {
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(map[string]string{"error": "messages field is required"})
 		return
@@ -125,13 +140,17 @@ func (h *AIHandler) handleChat(w http.ResponseWriter, r *http.Request) {
 		req.Model = "qwen-turbo"
 	}
 
-	reqBody := ChatRequest{
-		Model:    req.Model,
-		Messages: req.Messages,
+	reqBody := map[string]interface{}{
+		"model":    req.Model,
+		"messages": req.Messages,
+	}
+	if req.Stream {
+		reqBody["stream"] = true
 	}
 
 	jsonData, err := json.Marshal(reqBody)
 	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(map[string]string{"error": "Internal error"})
 		return
@@ -139,6 +158,7 @@ func (h *AIHandler) handleChat(w http.ResponseWriter, r *http.Request) {
 
 	apiReq, err := http.NewRequest("POST", h.baseURL+"/chat/completions", bytes.NewBuffer(jsonData))
 	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(map[string]string{"error": "Internal error"})
 		return
@@ -146,10 +166,14 @@ func (h *AIHandler) handleChat(w http.ResponseWriter, r *http.Request) {
 
 	apiReq.Header.Set("Content-Type", "application/json")
 	apiReq.Header.Set("Authorization", "Bearer "+h.apiKey)
+	if req.Stream {
+		apiReq.Header.Set("Accept", "text/event-stream")
+	}
 
 	client := &http.Client{}
 	apiResp, err := client.Do(apiReq)
 	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(map[string]string{
 			"error": fmt.Sprintf("Request failed: %v", err),
@@ -160,6 +184,7 @@ func (h *AIHandler) handleChat(w http.ResponseWriter, r *http.Request) {
 
 	if apiResp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(apiResp.Body)
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(apiResp.StatusCode)
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"error":   fmt.Sprintf("DashScope API error: %s", apiResp.Status),
@@ -168,12 +193,65 @@ func (h *AIHandler) handleChat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var chatResp ChatResponse
-	if err := json.NewDecoder(apiResp.Body).Decode(&chatResp); err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "Failed to decode response"})
-		return
+	if req.Stream {
+		h.handleStream(w, apiResp)
+	} else {
+		var chatResp ChatResponse
+		if err := json.NewDecoder(apiResp.Body).Decode(&chatResp); err != nil {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(map[string]string{"error": "Failed to decode response"})
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(chatResp)
+	}
+}
+
+func (h *AIHandler) handleStream(w http.ResponseWriter, apiResp *http.Response) {
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	w.WriteHeader(http.StatusOK)
+
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		log.Println("Warning: ResponseWriter does not support Flusher")
 	}
 
-	json.NewEncoder(w).Encode(chatResp)
+	scanner := bufio.NewScanner(apiResp.Body)
+	for scanner.Scan() {
+		line := scanner.Text()
+		fmt.Fprintf(w, "%s\n", line)
+
+		if strings.HasPrefix(line, "data: ") {
+			data := strings.TrimPrefix(line, "data: ")
+			if data == "[DONE]" {
+				if ok {
+					flusher.Flush()
+				}
+				break
+			}
+			var chunk ChatResponse
+			if err := json.Unmarshal([]byte(data), &chunk); err != nil {
+				continue
+			}
+			if len(chunk.Choices) > 0 && chunk.Choices[0].FinishReason != "" {
+				if ok {
+					flusher.Flush()
+				}
+				fmt.Fprintf(w, "data: [DONE]\n")
+				if ok {
+					flusher.Flush()
+				}
+				break
+			}
+		}
+		if ok {
+			flusher.Flush()
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		log.Printf("SSE scan error: %v", err)
+	}
 }

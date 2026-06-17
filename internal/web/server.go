@@ -61,6 +61,7 @@ func (s *Server) Start() {
 	http.HandleFunc("/api/resources", s.handleAPIResourcesJSON)
 	http.HandleFunc("/api/ai/models", s.aiHandler.ServeHTTP)
 	http.HandleFunc("/api/ai/chat", s.aiHandler.ServeHTTP)
+	http.HandleFunc("/api/stats", s.handleStats)
 	http.HandleFunc("/api/health", s.handleHealth)
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -232,4 +233,40 @@ func marshalJSON(v interface{}) string {
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Write([]byte(`{"status":"ok","service":"ai-watcher"}`))
+}
+
+func (s *Server) handleStats(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	stats, err := s.db.GetStats()
+	if err != nil {
+		http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusInternalServerError)
+		return
+	}
+
+	latestNews, _ := s.db.GetLatestNews(3)
+	var latestItems []map[string]interface{}
+	for _, n := range latestNews {
+		latestItems = append(latestItems, map[string]interface{}{
+			"id":         n.ID,
+			"title":      n.Title,
+			"url":        n.URL,
+			"summary":    n.Summary,
+			"source":     n.Source,
+			"created_at": n.CreatedAt.Format("2006-01-02 15:04:05"),
+		})
+	}
+
+	resources, _ := s.db.GetAPIResources()
+
+	resp := map[string]interface{}{
+		"model_count":    api.GetModelCount(),
+		"news_count":     stats.NewsCount,
+		"resource_count": len(resources),
+		"last_fetch":     stats.LastFetch,
+		"source_counts":  stats.SourceCounts,
+		"latest_news":    latestItems,
+	}
+
+	json.NewEncoder(w).Encode(resp)
 }
