@@ -99,6 +99,7 @@
 
 <script setup lang="ts">
 import { ref, nextTick, onMounted, computed } from 'vue'
+import { useRoute } from 'vue-router'
 import { marked } from 'marked'
 import hljs from 'highlight.js'
 import 'highlight.js/styles/github-dark.css'
@@ -116,6 +117,7 @@ interface Vendor {
 }
 
 const STORAGE_KEY = 'ai-chat-messages'
+const route = useRoute()
 
 const messages = ref<Message[]>([])
 const inputMessage = ref('')
@@ -372,6 +374,10 @@ function loadFromLocal() {
 onMounted(async () => {
   loadFromLocal()
   await loadModels()
+  const modelParam = route.query.model as string
+  if (modelParam) {
+    selectedModel.value = modelParam
+  }
   await nextTick()
   scrollToBottom()
 })
@@ -798,5 +804,54 @@ onMounted(async () => {
   color: #c00;
   border-top: 1px solid #fcc;
   font-size: 0.875rem;
+}
+
+@media (max-width: 768px) {
+  .chat-view {
+    height: calc(100vh - 100px);
+  }
+  .chat-header {
+    padding: 0.75rem 1rem;
+  }
+  .chat-header h2 {
+    font-size: 1rem;
+  }
+  .header-left {
+    gap: 0.5rem;
+  }
+  .messages {
+    padding: 1rem;
+  }
+  .message {
+    max-width: 92%;
+    padding: 0.75rem;
+  }
+  .input-area {
+    padding: 0.75rem 1rem;
+    gap: 0.35rem;
+  }
+  .input-area input {
+    padding: 0.6rem;
+    font-size: 0.9rem;
+  }
+  .input-area button[type="submit"],
+  .stop-btn,
+  .model-select-btn {
+    padding: 0.6rem 0.75rem;
+    font-size: 0.85rem;
+  }
+  .model-picker {
+    width: 95%;
+    padding: 1rem;
+    max-height: 70vh;
+  }
+  .vendor-btn {
+    padding: 0.4rem 0.75rem;
+    font-size: 0.8rem;
+  }
+  .model-btn {
+    padding: 0.3rem 0.6rem;
+    font-size: 0.75rem;
+  }
 }
 </style>

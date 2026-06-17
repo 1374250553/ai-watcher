@@ -21,6 +21,7 @@ type APIResource struct {
 	Endpoint    string    `json:"endpoint" db:"endpoint"`
 	FreeQuota   string    `json:"free_quota" db:"free_quota"`
 	DocURL      string    `json:"doc_url" db:"doc_url"`
+	Model       string    `json:"model" db:"model"`
 	IsActive    bool      `json:"is_active" db:"is_active"`
 	LastUpdated time.Time `json:"last_updated" db:"last_updated"`
 	CreatedAt   time.Time `json:"created_at" db:"created_at"`

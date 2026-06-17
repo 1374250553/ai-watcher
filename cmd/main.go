@@ -32,6 +32,7 @@ func main() {
 
 	loadSampleData(db)
 	loadDefaultResources(db)
+	runMigrations(db)
 
 	rssFetcher := services.NewRSSFetcher(db, cfg)
 	wechatFetcher := services.NewWechatFetcher(db, cfg)
@@ -98,16 +99,20 @@ func loadDefaultResources(db *api.Database) {
 	}
 
 	resources := []models.APIResource{
-		{Name: "通义千问 Qwen-Turbo", Provider: "阿里云", Description: "阿里云通义千问系列轻量级模型，适合摘要生成", Endpoint: "https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation", FreeQuota: "100万tokens/月免费", DocURL: "https://help.aliyun.com/zh/dashscope/developer-reference/api-details", IsActive: true, LastUpdated: time.Now(), CreatedAt: time.Now()},
-		{Name: "DeepSeek V3", Provider: "DeepSeek", Description: "DeepSeek 大语言模型，支持多种任务", Endpoint: "https://api.deepseek.com/v1/chat/completions", FreeQuota: "500万tokens/月免费", DocURL: "https://platform.deepseek.com/api-docs", IsActive: true, LastUpdated: time.Now(), CreatedAt: time.Now()},
-		{Name: "智谱 GLM-4-Flash", Provider: "智谱AI", Description: "智谱AI GLM-4 系列轻量模型", Endpoint: "https://open.bigmodel.cn/api/paas/v4/chat/completions", FreeQuota: "100万tokens/月免费", DocURL: "https://bigmodel.cn/dev/api", IsActive: true, LastUpdated: time.Now(), CreatedAt: time.Now()},
-		{Name: "百度文心一言 ERNIE-Speed", Provider: "百度智能云", Description: "百度文心一言轻量版", Endpoint: "https://aip.baidubce.com/rpc/2.0/ai_custom/v1/wenxinworkshop/chat/ernie-speed-128k", FreeQuota: "每天免费10000次", DocURL: "https://cloud.baidu.com/doc/WENXINWORKSHOP/s/Hlr74s9x2", IsActive: true, LastUpdated: time.Now(), CreatedAt: time.Now()},
-		{Name: "讯飞星火 Spark Lite", Provider: "科大讯飞", Description: "科大讯飞星火认知大模型轻量版", Endpoint: "https://spark-api-open.xf-yun.com/v1/chat/completions", FreeQuota: "每天免费5000次", DocURL: "https://www.xfyun.cn/doc/spark/HTTP%E8%B0%83%E7%94%A8%E6%96%87%E6%A1%A3.html", IsActive: true, LastUpdated: time.Now(), CreatedAt: time.Now()},
-		{Name: "字节豆包 Doubao-lite", Provider: "字节跳动", Description: "字节跳动豆包系列轻量模型", Endpoint: "https://ark.cn-beijing.volces.com/api/v3/chat/completions", FreeQuota: "50万tokens/月免费", DocURL: "https://www.volcengine.com/docs/82379/1298454", IsActive: true, LastUpdated: time.Now(), CreatedAt: time.Now()},
+		{Name: "通义千问 Qwen-Turbo", Provider: "阿里云", Description: "阿里云通义千问系列轻量级模型，适合摘要生成", Endpoint: "https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation", FreeQuota: "100万tokens/月免费", DocURL: "https://help.aliyun.com/zh/dashscope/developer-reference/api-details", Model: "qwen-turbo", IsActive: true, LastUpdated: time.Now(), CreatedAt: time.Now()},
+		{Name: "DeepSeek V3", Provider: "DeepSeek", Description: "DeepSeek 大语言模型，支持多种任务", Endpoint: "https://api.deepseek.com/v1/chat/completions", FreeQuota: "500万tokens/月免费", DocURL: "https://platform.deepseek.com/api-docs", Model: "deepseek-v3", IsActive: true, LastUpdated: time.Now(), CreatedAt: time.Now()},
+		{Name: "智谱 GLM-4-Flash", Provider: "智谱AI", Description: "智谱AI GLM-4 系列轻量模型", Endpoint: "https://open.bigmodel.cn/api/paas/v4/chat/completions", FreeQuota: "100万tokens/月免费", DocURL: "https://bigmodel.cn/dev/api", Model: "glm-4.7", IsActive: true, LastUpdated: time.Now(), CreatedAt: time.Now()},
+		{Name: "百度文心一言 ERNIE-Speed", Provider: "百度智能云", Description: "百度文心一言轻量版", Endpoint: "https://aip.baidubce.com/rpc/2.0/ai_custom/v1/wenxinworkshop/chat/ernie-speed-128k", FreeQuota: "每天免费10000次", DocURL: "https://cloud.baidu.com/doc/WENXINWORKSHOP/s/Hlr74s9x2", Model: "", IsActive: true, LastUpdated: time.Now(), CreatedAt: time.Now()},
+		{Name: "讯飞星火 Spark Lite", Provider: "科大讯飞", Description: "科大讯飞星火认知大模型轻量版", Endpoint: "https://spark-api-open.xf-yun.com/v1/chat/completions", FreeQuota: "每天免费5000次", DocURL: "https://www.xfyun.cn/doc/spark/HTTP%E8%B0%83%E7%94%A8%E6%96%87%E6%A1%A3.html", Model: "", IsActive: true, LastUpdated: time.Now(), CreatedAt: time.Now()},
+		{Name: "字节豆包 Doubao-lite", Provider: "字节跳动", Description: "字节跳动豆包系列轻量模型", Endpoint: "https://ark.cn-beijing.volces.com/api/v3/chat/completions", FreeQuota: "50万tokens/月免费", DocURL: "https://www.volcengine.com/docs/82379/1298454", Model: "", IsActive: true, LastUpdated: time.Now(), CreatedAt: time.Now()},
 	}
 
 	for i := range resources {
 		db.InsertAPIResource(&resources[i])
 	}
 	log.Printf("Loaded %d default API resources", len(resources))
+}
+
+func runMigrations(db *api.Database) {
+	db.Exec("ALTER TABLE api_resources ADD COLUMN IF NOT EXISTS model VARCHAR(100) DEFAULT '' AFTER doc_url")
 }

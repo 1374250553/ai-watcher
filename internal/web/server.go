@@ -59,6 +59,7 @@ func (s *Server) Start() {
 	http.HandleFunc("/api/clean", s.handleClean)
 	http.HandleFunc("/api/news", s.handleAPINews)
 	http.HandleFunc("/api/resources", s.handleAPIResourcesJSON)
+	http.HandleFunc("/api/resources/health", s.handleResourceHealth)
 	http.HandleFunc("/api/ai/models", s.aiHandler.ServeHTTP)
 	http.HandleFunc("/api/ai/chat", s.aiHandler.ServeHTTP)
 	http.HandleFunc("/api/stats", s.handleStats)
@@ -209,6 +210,7 @@ func (s *Server) handleAPIResourcesJSON(w http.ResponseWriter, r *http.Request) 
 		Endpoint    string `json:"endpoint"`
 		FreeQuota   string `json:"free_quota"`
 		DocURL      string `json:"doc_url"`
+		Model       string `json:"model"`
 		LastUpdated string `json:"last_updated"`
 	}
 
@@ -217,7 +219,7 @@ func (s *Server) handleAPIResourcesJSON(w http.ResponseWriter, r *http.Request) 
 		items = append(items, ResJSON{
 			ID: r.ID, Name: r.Name, Provider: r.Provider, Description: r.Description,
 			Endpoint: r.Endpoint, FreeQuota: r.FreeQuota, DocURL: r.DocURL,
-			LastUpdated: r.LastUpdated.Format("2006-01-02 15:04:05"),
+			Model: r.Model, LastUpdated: r.LastUpdated.Format("2006-01-02 15:04:05"),
 		})
 	}
 
@@ -228,6 +230,56 @@ func (s *Server) handleAPIResourcesJSON(w http.ResponseWriter, r *http.Request) 
 func marshalJSON(v interface{}) string {
 	data, _ := json.Marshal(v)
 	return string(data)
+}
+
+func (s *Server) handleResourceHealth(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	idStr := r.URL.Query().Get("id")
+	if idStr == "" {
+		http.Error(w, `{"error":"id required"}`, http.StatusBadRequest)
+		return
+	}
+
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		http.Error(w, `{"error":"invalid id"}`, http.StatusBadRequest)
+		return
+	}
+
+	resources, err := s.db.GetAPIResources()
+	if err != nil {
+		http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusInternalServerError)
+		return
+	}
+
+	var endpoint string
+	for _, res := range resources {
+		if res.ID == id {
+			endpoint = res.Endpoint
+			break
+		}
+	}
+
+	if endpoint == "" {
+		http.Error(w, `{"error":"resource not found"}`, http.StatusNotFound)
+		return
+	}
+
+	client := &http.Client{Timeout: 5 * 1000000000}
+	resp, err := client.Head(endpoint)
+	status := "online"
+	if err != nil || (resp != nil && resp.StatusCode >= 500) {
+		status = "offline"
+	}
+	if resp != nil && resp.Body != nil {
+		resp.Body.Close()
+	}
+
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"id":     id,
+		"status": status,
+	})
 }
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {

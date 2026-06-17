@@ -316,4 +316,43 @@ onMounted(loadStats)
   color: #666;
   line-height: 1.6;
 }
+
+@media (max-width: 768px) {
+  .hero {
+    padding: 2rem 1rem;
+  }
+  .hero h2 {
+    font-size: 1.4rem;
+  }
+  .hero p {
+    font-size: 0.95rem;
+  }
+  .cta-btn {
+    font-size: 1rem;
+    padding: 0.7rem 1.5rem;
+  }
+  .stats-dashboard {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+  }
+  .stat-card {
+    padding: 1rem;
+    gap: 0.5rem;
+  }
+  .stat-icon {
+    width: 36px;
+    height: 36px;
+    font-size: 1rem;
+    border-radius: 8px;
+  }
+  .stat-value {
+    font-size: 1.2rem;
+  }
+  .news-grid {
+    grid-template-columns: 1fr;
+  }
+  .features {
+    grid-template-columns: 1fr;
+  }
+}
 </style>

@@ -46,6 +46,11 @@ func (db *Database) Query(query string, args ...interface{}) *sql.Row {
 	return db.db.QueryRow(query, args...)
 }
 
+func (db *Database) Exec(query string, args ...interface{}) error {
+	_, err := db.db.Exec(query, args...)
+	return err
+}
+
 func (db *Database) InsertNews(news *models.News) error {
 	_, err := db.db.Exec(
 		`INSERT IGNORE INTO news (title, url, summary, source, content, created_at, updated_at)
@@ -111,7 +116,7 @@ func (db *Database) GetNews(page, pageSize int, source, search string) ([]models
 
 func (db *Database) GetAPIResources() ([]models.APIResource, error) {
 	rows, err := db.db.Query(`SELECT id, name, provider, description, endpoint, free_quota, doc_url,
-		is_active, last_updated, created_at FROM api_resources ORDER BY id`)
+		COALESCE(model, ''), is_active, last_updated, created_at FROM api_resources ORDER BY id`)
 	if err != nil {
 		return nil, err
 	}
@@ -121,7 +126,7 @@ func (db *Database) GetAPIResources() ([]models.APIResource, error) {
 	for rows.Next() {
 		var r models.APIResource
 		if err := rows.Scan(&r.ID, &r.Name, &r.Provider, &r.Description, &r.Endpoint,
-			&r.FreeQuota, &r.DocURL, &r.IsActive, &r.LastUpdated, &r.CreatedAt); err != nil {
+			&r.FreeQuota, &r.DocURL, &r.Model, &r.IsActive, &r.LastUpdated, &r.CreatedAt); err != nil {
 			return nil, err
 		}
 		result = append(result, r)
@@ -132,10 +137,10 @@ func (db *Database) GetAPIResources() ([]models.APIResource, error) {
 
 func (db *Database) InsertAPIResource(resource *models.APIResource) error {
 	_, err := db.db.Exec(
-		`INSERT INTO api_resources (name, provider, description, endpoint, free_quota, doc_url, is_active, last_updated, created_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		`INSERT INTO api_resources (name, provider, description, endpoint, free_quota, doc_url, model, is_active, last_updated, created_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		resource.Name, resource.Provider, resource.Description, resource.Endpoint,
-		resource.FreeQuota, resource.DocURL, resource.IsActive, resource.LastUpdated, resource.CreatedAt,
+		resource.FreeQuota, resource.DocURL, resource.Model, resource.IsActive, resource.LastUpdated, resource.CreatedAt,
 	)
 	return err
 }
